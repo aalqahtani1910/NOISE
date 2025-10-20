@@ -2,6 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Permissions for Google Maps -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Required for Google Maps rendering -->
+    <uses-feature
+        android:glEsVersion="0x00020000"
+        android:required="true" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,6 +21,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NOISE">
+
+        <!-- *********************************************************************************** -->
+        <!-- *** IMPORTANT: REPLACE 'YOUR_API_KEY_HERE' WITH YOUR ACTUAL GOOGLE MAPS API KEY *** -->
+        <!-- *********************************************************************************** -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBLRcA39oh6RwOUnnYE6NV88Z6yBXAJgCc" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -18,7 +36,6 @@
             android:theme="@style/Theme.NOISE">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
