@@ -1,7 +1,10 @@
-Copyright (c) 2024 NOISE contributors
-
+Copyright (c) 2025 NOISE.
 All rights reserved.
 
-Permission is granted to contributors and authorized collaborators to use, modify, and distribute this code within the scope of the NOISE project. Redistribution or use of this code outside of the project requires prior written permission from the copyright holders.
+NOISE retains exclusive ownership of this codebase and all accompanying assets. No individual or organization may copy,
+modify, distribute, sublicense, or create derivative works from this project without the express prior written consent of an
+authorized NOISE representative. Access to the source is provided solely for evaluation and collaboration under NOISE's
+direction, and any deployment or redistribution must remain under NOISE's direct control.
 
-This project includes open-source dependencies that are covered by their respective licenses. Review each dependency's license terms before distributing compiled applications.
+This project depends on third-party open-source components that remain subject to their respective licenses. Nothing in this
+notice overrides or grants additional permissions beyond those third-party terms.
