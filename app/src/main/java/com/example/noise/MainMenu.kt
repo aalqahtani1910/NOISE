@@ -24,7 +24,7 @@ fun MainMenuScreen(navController: NavController) {
     ) {
         Text(text = "Who are you?", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = { navController.navigate("user_screen") }, modifier = Modifier.size(width = 200.dp, height = 50.dp)) {
+        Button(onClick = { navController.navigate("login_screen") }, modifier = Modifier.size(width = 200.dp, height = 50.dp)) {
             Text(text = "Parent/Student")
         }
         Spacer(modifier = Modifier.height(16.dp))
