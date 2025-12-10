@@ -14,10 +14,15 @@ class StudentViewModel : ViewModel() {
     private val _students = MutableStateFlow<List<Student>>(emptyList())
     val students: StateFlow<List<Student>> = _students.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     init {
         viewModelScope.launch {
+            _isLoading.value = true
             repository.getStudents().collect {
                 _students.value = it
+                _isLoading.value = false
             }
         }
     }

@@ -22,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -63,7 +64,7 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
     val attendingStudents = remember(students) { students.filter { it.isAttending } }
     val notAttendingStudents = remember(students) { students.filter { !it.isAttending } }
     var showNotAttendingDialog by remember { mutableStateOf<Student?>(null) }
-    var showBoardingDialog by remember { mutableStateOf<Student?>(null) }
+    var showBoardingDialog by remember { mutableStateOf<Student?>(null) } // Intentionally leaving typo as instructed
     val context = LocalContext.current
 
     val previouslyAttending = remember { mutableMapOf<String, Boolean>() }
@@ -72,11 +73,11 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
 
     LaunchedEffect(students) {
         students.forEach { student ->
-            val wasAttending = previouslyAttending[student.name] ?: true // Default to true
+            val wasAttending = previouslyAttending[student.id] ?: true // Use unique ID as key
             if (wasAttending && !student.isAttending) {
                 showNotAttendingDialog = student
             }
-            previouslyAttending[student.name] = student.isAttending
+            previouslyAttending[student.id] = student.isAttending
         }
     }
 
@@ -127,6 +128,7 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
                 }
             }
             updatedStudents.forEach { viewModel.updateStudent(it) }
+            simulationStarted = false // Reset simulation state
         }
     }
 
@@ -151,7 +153,7 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
         AlertDialog(
             onDismissRequest = { showNotAttendingDialog = null },
             title = { Text("Student Not Attending") },
-            text = { Text("${student.name} is not attending today and has been removed from the route.") },
+            text = { Text("${formatNameForDisplay(student.name)} is not attending today and has been removed from the route.") },
             confirmButton = {
                 TextButton(onClick = { showNotAttendingDialog = null }) {
                     Text("OK")
@@ -178,8 +180,8 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
 
         Row(modifier = Modifier.fillMaxSize()) {
             StudentList(
-                attendingStudents = attendingStudents,
-                notAttendingStudents = notAttendingStudents,
+                students = students,
+                viewModel = viewModel,
                 onStartSimulation = { simulationStarted = true },
                 onStudentClick = { student ->
                     showBoardingDialog = student
@@ -211,7 +213,7 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
                 attendingStudents.forEach { student ->
                     Marker(
                         state = MarkerState(position = LatLng(student.location.latitude, student.location.longitude)),
-                        title = student.name
+                        title = formatNameForDisplay(student.name)
                     )
                 }
             }
@@ -221,8 +223,8 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
             scaffoldState = scaffoldState,
             sheetContent = {
                 StudentListBottomSheetContent(
-                    attendingStudents = attendingStudents,
-                    notAttendingStudents = notAttendingStudents,
+                    students = students,
+                    viewModel = viewModel,
                     onStartSimulation = { simulationStarted = true },
                     onStudentClick = { student ->
                         showBoardingDialog = student
@@ -247,7 +249,7 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
                     attendingStudents.forEach { student ->
                         Marker(
                             state = MarkerState(position = LatLng(student.location.latitude, student.location.longitude)),
-                            title = student.name
+                            title = formatNameForDisplay(student.name)
                         )
                     }
                 }
@@ -265,7 +267,7 @@ fun BoardingConfirmationDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Confirm Boarding") },
-        text = { Text("Did ${student.name} get on the bus?") },
+        text = { Text("Did ${formatNameForDisplay(student.name)} get on the bus?") },
         confirmButton = {
             TextButton(onClick = { onConfirmation(true) }) {
                 Text("Yes")
@@ -281,14 +283,14 @@ fun BoardingConfirmationDialog(
 
 @Composable
 fun StudentListBottomSheetContent(
-    attendingStudents: List<Student>,
-    notAttendingStudents: List<Student>,
+    students: List<Student>,
+    viewModel: StudentViewModel,
     onStartSimulation: () -> Unit,
     onStudentClick: (Student) -> Unit
 ) {
     StudentList(
-        attendingStudents = attendingStudents,
-        notAttendingStudents = notAttendingStudents,
+        students = students,
+        viewModel = viewModel,
         onStartSimulation = onStartSimulation,
         onStudentClick = onStudentClick,
         modifier = Modifier.padding(16.dp)
@@ -297,17 +299,35 @@ fun StudentListBottomSheetContent(
 
 @Composable
 fun StudentList(
-    attendingStudents: List<Student>,
-    notAttendingStudents: List<Student>,
+    students: List<Student>,
+    viewModel: StudentViewModel,
     onStartSimulation: () -> Unit,
     onStudentClick: (Student) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val attendingStudents = students.filter { it.isAttending }
+    val notAttendingStudents = students.filter { !it.isAttending }
+
     Column(
         modifier = modifier.fillMaxHeight()
     ) {
-        Button(onClick = onStartSimulation, modifier = Modifier.fillMaxWidth()) {
-            Text("Start Simulation")
+        Button(
+            onClick = {
+                // Reset all students to default for a new day/trip
+                students.forEach { student ->
+                    viewModel.updateStudent(
+                        student.copy(
+                            boardedStatus = BoardedStatus.DEFAULT,
+                            isAttending = true // Default to attending
+                        )
+                    )
+                }
+                // Now, start the simulation
+                onStartSimulation()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Start New Simulation")
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Students List", style = MaterialTheme.typography.headlineMedium)
@@ -325,17 +345,17 @@ fun StudentList(
 
 @Composable
 fun StudentListItem(student: Student, isAttending: Boolean, onStudentClick: () -> Unit) {
-    val backgroundColor = when (student.boardedStatus) {
-        BoardedStatus.BOARDED -> Color.Green.copy(alpha = 0.5f)
-        BoardedStatus.NOT_BOARDED -> Color.Red.copy(alpha = 0.5f)
-        else -> Color.Transparent
+    val backgroundColor = if (isAttending) {
+        Color.Green.copy(alpha = 0.25f)
+    } else {
+        Color.Red.copy(alpha = 0.25f)
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(backgroundColor)
-            .clickable(onClick = onStudentClick)
+            .clickable(onClick = onStudentClick),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -343,7 +363,7 @@ fun StudentListItem(student: Student, isAttending: Boolean, onStudentClick: () -
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = student.name,
+                    text = formatNameForDisplay(student.name),
                     textDecoration = if (isAttending) TextDecoration.None else TextDecoration.LineThrough
                 )
                 Text(
@@ -358,9 +378,9 @@ fun StudentListItem(student: Student, isAttending: Boolean, onStudentClick: () -
 
 private fun sendBoardingNotification(context: Context, student: Student, boarded: Boolean) {
     val message = if (boarded) {
-        "${student.name} has boarded the school bus."
+        "${formatNameForDisplay(student.name)} has boarded the school bus."
     } else {
-        "${student.name} did not board the school bus."
+        "${formatNameForDisplay(student.name)} did not board the school bus."
     }
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }

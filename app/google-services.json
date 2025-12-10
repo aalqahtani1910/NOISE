@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "479642493845",
+    "project_id": "noise-9c075",
+    "storage_bucket": "noise-9c075.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:479642493845:android:7d88ba4b316175593fcc9c",
+        "android_client_info": {
+          "package_name": "com.example.noise"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCN9zCx0YXTGQRY0yi2GnNy4YE75heRmF8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

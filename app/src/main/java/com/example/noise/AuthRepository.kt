@@ -13,15 +13,21 @@ class AuthRepository {
             val document = firestore.collection("parents").document(parentId).get().await()
             val parent = document.toObject<Parent>()
 
-            // First, get the parent document by ID.
-            // Then, verify if the password matches.
             if (parent?.password == password) {
-                parent
+                parent.copy(id = document.id)
             } else {
                 null
             }
         } catch (e: Exception) {
-            // If the document doesn't exist or another error occurs
+            null
+        }
+    }
+
+    suspend fun getParentById(parentId: String): Parent? {
+        return try {
+            val document = firestore.collection("parents").document(parentId).get().await()
+            document.toObject<Parent>()?.copy(id = document.id)
+        } catch (e: Exception) {
             null
         }
     }
