@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -91,8 +92,6 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
         allStudents.filter { student -> driver.students.containsKey(student.id) }
     }
 
-    val attendingStudents = remember(myStudents) { myStudents.filter { it.isAttending } }
-    val notAttendingStudents = remember(myStudents) { myStudents.filter { !it.isAttending } }
     var showNotAttendingDialog by remember { mutableStateOf<Student?>(null) }
     var showBoardingDialog by remember { mutableStateOf<Student?>(null) }
 
@@ -115,27 +114,32 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
     // Simulate driver moving along the route
     LaunchedEffect(simulationStarted) {
         if (simulationStarted) {
-            val route = RouteCalculator.calculateFurthestToClosestRoute(driverLocation, attendingStudents)
+            val attendingStudentsOnStart = studentViewModel.students.value.filter { s -> driver.students.containsKey(s.id) && s.isAttending }
+            val route = RouteCalculator.calculateFurthestToClosestRoute(driverLocation, attendingStudentsOnStart)
             var currentLocation = driverLocation
 
-            for (student in route) {
-                // Move to student
-                val studentStartLocation = currentLocation
-                val studentEndLocation = student.location
-                for (i in 1..100) {
-                    val fraction = i / 100f
-                    val lat = (1 - fraction) * studentStartLocation.latitude + fraction * studentEndLocation.latitude
-                    val lng = (1 - fraction) * studentStartLocation.longitude + fraction * studentEndLocation.longitude
-                    driverLocation = GeoPoint(lat, lng)
-                    driverViewModel.updateDriverLocation(driver.id, driverLocation)
-                    delay(50)
-                }
-                currentLocation = student.location
+            for (studentInRoute in route) {
+                val upToDateStudent = studentViewModel.students.value.find { it.id == studentInRoute.id }
 
-                // Wait for boarding confirmation
-                showBoardingDialog = student
-                while (showBoardingDialog != null) {
-                    delay(100)
+                if (upToDateStudent != null && upToDateStudent.isAttending) {
+                    // Move to student
+                    val studentStartLocation = currentLocation
+                    val studentEndLocation = upToDateStudent.location
+                    for (i in 1..100) {
+                        val fraction = i / 100f
+                        val lat = (1 - fraction) * studentStartLocation.latitude + fraction * studentEndLocation.latitude
+                        val lng = (1 - fraction) * studentStartLocation.longitude + fraction * studentEndLocation.longitude
+                        driverLocation = GeoPoint(lat, lng)
+                        driverViewModel.updateDriverLocation(driver.id, driverLocation)
+                        delay(50)
+                    }
+                    currentLocation = upToDateStudent.location
+
+                    // Wait for boarding confirmation
+                    showBoardingDialog = upToDateStudent
+                    while (showBoardingDialog != null) {
+                        delay(100)
+                    }
                 }
             }
 
@@ -179,6 +183,19 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    val onReset = {
+        myStudents.forEach { student ->
+            studentViewModel.updateStudent(
+                student.copy(
+                    boardedStatus = BoardedStatus.DEFAULT,
+                    isAttending = true
+                )
+            )
+        }
+        driverLocation = driver.startlocation
+        simulationStarted = false
+    }
+
     showNotAttendingDialog?.let { student ->
         AlertDialog(
             onDismissRequest = { showNotAttendingDialog = null },
@@ -213,6 +230,8 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
                 students = myStudents,
                 viewModel = studentViewModel,
                 onStartSimulation = { simulationStarted = true },
+                onReset = onReset,
+                simulationInProgress = simulationStarted,
                 onStudentClick = { student ->
                     showBoardingDialog = student
                 },
@@ -242,10 +261,12 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
                     title = "Your Location",
                     icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
                 )
-                attendingStudents.forEach { student ->
+                myStudents.forEach { student ->
                     Marker(
                         state = MarkerState(position = LatLng(student.location.latitude, student.location.longitude)),
-                        title = formatNameForDisplay(student.name)
+                        title = formatNameForDisplay(student.name),
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED),
+                        alpha = if (student.isAttending) 1.0f else 0.5f
                     )
                 }
             }
@@ -258,6 +279,8 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
                     students = myStudents,
                     viewModel = studentViewModel,
                     onStartSimulation = { simulationStarted = true },
+                    onReset = onReset,
+                    simulationInProgress = simulationStarted,
                     onStudentClick = { student ->
                         showBoardingDialog = student
                     },
@@ -280,10 +303,12 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
                         title = "Your Location",
                         icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
                     )
-                    attendingStudents.forEach { student ->
+                    myStudents.forEach { student ->
                         Marker(
                             state = MarkerState(position = LatLng(student.location.latitude, student.location.longitude)),
-                            title = formatNameForDisplay(student.name)
+                            title = formatNameForDisplay(student.name),
+                            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED),
+                            alpha = if (student.isAttending) 1.0f else 0.5f
                         )
                     }
                 }
@@ -320,6 +345,8 @@ fun StudentListBottomSheetContent(
     students: List<Student>,
     viewModel: StudentViewModel,
     onStartSimulation: () -> Unit,
+    onReset: () -> Unit,
+    simulationInProgress: Boolean,
     onStudentClick: (Student) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -327,6 +354,8 @@ fun StudentListBottomSheetContent(
         students = students,
         viewModel = viewModel,
         onStartSimulation = onStartSimulation,
+        onReset = onReset,
+        simulationInProgress = simulationInProgress,
         onStudentClick = onStudentClick,
         onLogout = onLogout,
         modifier = Modifier.padding(16.dp)
@@ -338,6 +367,8 @@ fun StudentList(
     students: List<Student>,
     viewModel: StudentViewModel,
     onStartSimulation: () -> Unit,
+    onReset: () -> Unit,
+    simulationInProgress: Boolean,
     onStudentClick: (Student) -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
@@ -350,23 +381,16 @@ fun StudentList(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            Button(
-                onClick = {
-                    // Reset all students to default for a new day/trip
-                    students.forEach { student ->
-                        viewModel.updateStudent(
-                            student.copy(
-                                boardedStatus = BoardedStatus.DEFAULT,
-                                isAttending = true // Default to attending
-                            )
-                        )
-                    }
-                    // Now, start the simulation
-                    onStartSimulation()
-                },
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Text("Start New Simulation")
+                Button(onClick = onStartSimulation, enabled = !simulationInProgress) {
+                    Text("Start Simulation")
+                }
+                Button(onClick = onReset) {
+                    Text("Reset Trip")
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(text = "Students List", style = MaterialTheme.typography.headlineMedium)

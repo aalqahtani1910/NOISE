@@ -143,14 +143,14 @@ fun UserMainScreen(navController: NavController, authViewModel: AuthViewModel, s
                     title = formatNameForDisplay(student.name),
                     snippet = "Student Location"
                 )
-                val driver = allDrivers.find { driver -> driver.students.containsKey(student.id) }
-                driver?.let {
-                    Marker(
-                        state = MarkerState(position = LatLng(it.livelocation.latitude, it.livelocation.longitude)),
-                        title = "Bus Location",
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
-                    )
-                }
+            }
+            val driver = allDrivers.find { driver -> myStudents.any { driver.students.containsKey(it.id) } }
+            driver?.let {
+                Marker(
+                    state = MarkerState(position = LatLng(it.livelocation.latitude, it.livelocation.longitude)),
+                    title = "Bus Location",
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                )
             }
         }
     }
