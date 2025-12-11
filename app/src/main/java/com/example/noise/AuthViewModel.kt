@@ -15,6 +15,9 @@ class AuthViewModel : ViewModel() {
     private val _loggedInParent = MutableStateFlow<Parent?>(null)
     val loggedInParent: StateFlow<Parent?> = _loggedInParent.asStateFlow()
 
+    private val _loggedInDriver = MutableStateFlow<Driver?>(null)
+    val loggedInDriver: StateFlow<Driver?> = _loggedInDriver.asStateFlow()
+
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn.asStateFlow()
 
@@ -31,7 +34,7 @@ class AuthViewModel : ViewModel() {
             val parent = repository.getParent(parentId.trim(), password.trim())
             if (parent != null) {
                 if (rememberMe) {
-                    SessionManager.saveSession(context, parent.id)
+                    SessionManager.saveSession(context, parent.id, "parent")
                 }
                 _loggedInParent.value = parent
                 onLoginSuccess()
@@ -42,18 +45,48 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun checkForSavedSession(context: Context, onLoginSuccess: () -> Unit) {
-        val savedParentId = SessionManager.getSavedParentId(context)
-        if (savedParentId != null) {
+    fun driverLogin(context: Context, driverId: String, password: String, rememberMe: Boolean, onLoginSuccess: () -> Unit) {
+        if (_isLoggingIn.value) return
+
+        viewModelScope.launch {
+            _isLoggingIn.value = true
+            _loginError.value = null
+
+            val driver = repository.getDriver(driverId.trim(), password.trim())
+            if (driver != null) {
+                if (rememberMe) {
+                    SessionManager.saveSession(context, driver.id, "driver")
+                }
+                _loggedInDriver.value = driver
+                onLoginSuccess()
+            } else {
+                _loginError.value = "Invalid Driver ID or Password"
+            }
+            _isLoggingIn.value = false
+        }
+    }
+
+    fun checkForSavedSession(context: Context, onParentLoginSuccess: () -> Unit, onDriverLoginSuccess: () -> Unit) {
+        val (savedId, userType) = SessionManager.getSavedSession(context)
+        if (savedId != null && userType != null) {
             viewModelScope.launch {
                 _isLoggingIn.value = true
-                val parent = repository.getParentById(savedParentId) // Assumes password is not needed for re-login
-                if (parent != null) {
-                    _loggedInParent.value = parent
-                    onLoginSuccess()
-                } else {
-                    // Clear invalid session
-                    SessionManager.clearSession(context)
+                if (userType == "parent") {
+                    val parent = repository.getParentById(savedId)
+                    if (parent != null) {
+                        _loggedInParent.value = parent
+                        onParentLoginSuccess()
+                    } else {
+                        SessionManager.clearSession(context)
+                    }
+                } else if (userType == "driver") {
+                    val driver = repository.getDriverById(savedId)
+                    if (driver != null) {
+                        _loggedInDriver.value = driver
+                        onDriverLoginSuccess()
+                    } else {
+                        SessionManager.clearSession(context)
+                    }
                 }
                 _isLoggingIn.value = false
             }
@@ -63,6 +96,7 @@ class AuthViewModel : ViewModel() {
     fun logout(context: Context) {
         SessionManager.clearSession(context)
         _loggedInParent.value = null
+        _loggedInDriver.value = null
     }
 
     fun clearLoginError() {

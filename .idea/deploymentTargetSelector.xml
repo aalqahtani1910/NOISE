@@ -15,27 +15,17 @@
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Parent_2_phone.avd" />
+                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Parent_2.avd" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Parent_1_phone.avd" />
+                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Parent_1.avd" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Driver_Tab.avd" />
-              </handle>
-            </Target>
-            <Target type="DEFAULT_BOOT">
-              <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Driver_Tab_2.avd" />
-              </handle>
-            </Target>
-            <Target type="DEFAULT_BOOT">
-              <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Parent_3_phone.avd" />
+                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\pc\.android\avd\Driver_Tab_1.avd" />
               </handle>
             </Target>
           </targets>

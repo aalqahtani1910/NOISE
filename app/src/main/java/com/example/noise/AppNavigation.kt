@@ -11,18 +11,21 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
 
-    NavHost(navController = navController, startDestination = "main_menu") {
-        composable("main_menu") {
-            MainMenuScreen(navController = navController)
+    NavHost(navController = navController, startDestination = "role_selection") {
+        composable("role_selection") {
+            RoleSelectionScreen(navController)
         }
         composable("login_screen") {
-            LoginScreen(navController = navController, authViewModel = authViewModel)
+            LoginScreen(navController, authViewModel)
+        }
+        composable("driver_login_screen") {
+            DriverLoginScreen(navController, authViewModel)
         }
         composable("user_screen") {
-            UserMainScreen(authViewModel = authViewModel)
+            UserMainScreen(navController, authViewModel)
         }
         composable("driver_screen") {
-            DriverScreen()
+            DriverScreen(navController, authViewModel)
         }
     }
 }

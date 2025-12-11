@@ -39,10 +39,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -52,10 +54,11 @@ import com.google.maps.android.compose.rememberCameraPositionState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserMainScreen(authViewModel: AuthViewModel, studentViewModel: StudentViewModel = viewModel()) {
+fun UserMainScreen(navController: NavController, authViewModel: AuthViewModel, studentViewModel: StudentViewModel = viewModel()) {
     val loggedInParent by authViewModel.loggedInParent.collectAsState()
     val allStudents by studentViewModel.students.collectAsState()
     val isLoading by studentViewModel.isLoading.collectAsState()
+    val context = LocalContext.current
 
     var selectedStudent by remember { mutableStateOf<Student?>(null) }
     var studentForAutoPopup by remember { mutableStateOf<Student?>(null) }
@@ -117,7 +120,13 @@ fun UserMainScreen(authViewModel: AuthViewModel, studentViewModel: StudentViewMo
             selectedStudent = selectedStudent,
             onAttendanceConfirmed = onAttendanceConfirmed,
             // Add a dismiss action for the detail view
-            onDismissSelection = { selectedStudent = null }
+            onDismissSelection = { selectedStudent = null },
+            onLogout = {
+                authViewModel.logout(context)
+                navController.navigate("role_selection") {
+                    popUpTo(0)
+                }
+            }
         )
     }
 
@@ -193,7 +202,8 @@ fun StudentScreenContent(
     onStudentSelected: (Student) -> Unit,
     selectedStudent: Student?,
     onAttendanceConfirmed: (Student, Boolean) -> Unit,
-    onDismissSelection: () -> Unit // New parameter for dismissing the selection
+    onDismissSelection: () -> Unit, // New parameter for dismissing the selection
+    onLogout: () -> Unit
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -204,16 +214,20 @@ fun StudentScreenContent(
             Spacer(modifier = Modifier.height(16.dp))
             Text("Loading children...")
         } else if (selectedStudent == null) {
-            Text(text = "My Children", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(16.dp))
-            if (students.isEmpty()) {
-                Text(
-                    text = "No children found for this account. Please check your parent record in the database and ensure the student IDs are correctly added to your 'children' map.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+            LazyColumn(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                item {
+                    Text(text = "My Children", style = MaterialTheme.typography.headlineMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                if (students.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No children found for this account. Please check your parent record in the database and ensure the student IDs are correctly added to your 'children' map.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
                     items(students) { student ->
                         Card(
                             modifier = Modifier
@@ -231,6 +245,12 @@ fun StudentScreenContent(
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
+                    }
+                }
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = onLogout) {
+                        Text("Logout")
                     }
                 }
             }

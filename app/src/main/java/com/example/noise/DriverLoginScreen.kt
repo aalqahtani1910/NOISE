@@ -38,8 +38,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 
 @Composable
-fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
-    var parentId by remember { mutableStateOf("") }
+fun DriverLoginScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
+    var driverId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
@@ -47,13 +47,6 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
     val isLoggingIn by authViewModel.isLoggingIn.collectAsState()
     val loginError by authViewModel.loginError.collectAsState()
     val context = LocalContext.current
-
-    LaunchedEffect(loginError) {
-        loginError?.let {
-            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            authViewModel.clearLoginError()
-        }
-    }
 
     val onParentLoginSuccess = {
         navController.navigate("user_screen") {
@@ -72,17 +65,24 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
         authViewModel.checkForSavedSession(context, onParentLoginSuccess, onDriverLoginSuccess)
     }
 
+    LaunchedEffect(loginError) {
+        loginError?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            authViewModel.clearLoginError()
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Parent Login", style = MaterialTheme.typography.headlineMedium)
+        Text(text = "Driver Login", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
         OutlinedTextField(
-            value = parentId,
-            onValueChange = { parentId = it },
-            label = { Text("Parent ID") },
+            value = driverId,
+            onValueChange = { driverId = it },
+            label = { Text("Driver ID") },
             singleLine = true,
             enabled = !isLoggingIn
         )
@@ -117,7 +117,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
         }
         Spacer(modifier = Modifier.height(24.dp))
         Button(
-            onClick = { authViewModel.login(context, parentId, password, rememberMe, onParentLoginSuccess) },
+            onClick = { authViewModel.driverLogin(context, driverId, password, rememberMe, onDriverLoginSuccess) },
             enabled = !isLoggingIn
         ) {
             if (isLoggingIn) {

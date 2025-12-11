@@ -23,7 +23,7 @@ import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.GeoPoint
@@ -59,20 +60,47 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
-    val students by viewModel.students.collectAsState()
-    val attendingStudents = remember(students) { students.filter { it.isAttending } }
-    val notAttendingStudents = remember(students) { students.filter { !it.isAttending } }
+fun DriverScreen(navController: NavController, authViewModel: AuthViewModel, studentViewModel: StudentViewModel = viewModel()) {
+    val loggedInDriver by authViewModel.loggedInDriver.collectAsState()
+
+    loggedInDriver?.let { driver ->
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = "Welcome, ${driver.name}!",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(16.dp)
+            )
+            DriverMapAndStudentList(driver, studentViewModel) {
+                authViewModel.logout(navController.context)
+                navController.navigate("role_selection") {
+                    popUpTo(0)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, onLogout: () -> Unit) {
+    val allStudents by studentViewModel.students.collectAsState()
+    val context = LocalContext.current
+
+    val myStudents = remember(driver, allStudents) {
+        allStudents.filter { student -> driver.students.containsKey(student.id) }
+    }
+
+    val attendingStudents = remember(myStudents) { myStudents.filter { it.isAttending } }
+    val notAttendingStudents = remember(myStudents) { myStudents.filter { !it.isAttending } }
     var showNotAttendingDialog by remember { mutableStateOf<Student?>(null) }
     var showBoardingDialog by remember { mutableStateOf<Student?>(null) } // Intentionally leaving typo as instructed
-    val context = LocalContext.current
 
     val previouslyAttending = remember { mutableMapOf<String, Boolean>() }
 
     var simulationStarted by remember { mutableStateOf(false) }
 
-    LaunchedEffect(students) {
-        students.forEach { student ->
+    LaunchedEffect(myStudents) {
+        myStudents.forEach { student ->
             val wasAttending = previouslyAttending[student.id] ?: true // Use unique ID as key
             if (wasAttending && !student.isAttending) {
                 showNotAttendingDialog = student
@@ -81,8 +109,7 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
         }
     }
 
-    var driverLocation by remember { mutableStateOf(GeoPoint(25.35, 51.48)) } // Default location
-    val startLocation = remember { driverLocation }
+    var driverLocation by remember { mutableStateOf(driver.startlocation) } 
 
     // Simulate driver moving along the route
     LaunchedEffect(simulationStarted) {
@@ -114,20 +141,20 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
             val returnStartLocation = currentLocation
             for (i in 1..100) {
                 val fraction = i / 100f
-                val lat = (1 - fraction) * returnStartLocation.latitude + fraction * startLocation.latitude
-                val lng = (1 - fraction) * returnStartLocation.longitude + fraction * startLocation.longitude
+                val lat = (1 - fraction) * returnStartLocation.latitude + fraction * driver.startlocation.latitude
+                val lng = (1 - fraction) * returnStartLocation.longitude + fraction * driver.startlocation.longitude
                 driverLocation = GeoPoint(lat, lng)
                 delay(50)
             }
 
-            val updatedStudents = students.map {
+            val updatedStudents = myStudents.map {
                 if (it.boardedStatus == BoardedStatus.BOARDED) {
                     it.copy(boardedStatus = BoardedStatus.TRIP_COMPLETED)
                 } else {
                     it
                 }
             }
-            updatedStudents.forEach { viewModel.updateStudent(it) }
+            updatedStudents.forEach { studentViewModel.updateStudent(it) }
             simulationStarted = false // Reset simulation state
         }
     }
@@ -166,7 +193,7 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
         BoardingConfirmationDialog(
             student = student,
             onConfirmation = { boarded ->
-                viewModel.updateStudent(student.copy(boardedStatus = if (boarded) BoardedStatus.BOARDED else BoardedStatus.NOT_BOARDED))
+                studentViewModel.updateStudent(student.copy(boardedStatus = if (boarded) BoardedStatus.BOARDED else BoardedStatus.NOT_BOARDED))
                 sendBoardingNotification(context, student, boarded)
                 showBoardingDialog = null
             },
@@ -180,18 +207,19 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
 
         Row(modifier = Modifier.fillMaxSize()) {
             StudentList(
-                students = students,
-                viewModel = viewModel,
+                students = myStudents,
+                viewModel = studentViewModel,
                 onStartSimulation = { simulationStarted = true },
                 onStudentClick = { student ->
                     showBoardingDialog = student
                 },
+                onLogout = onLogout,
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(studentListWidth)
                     .padding(16.dp)
             )
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(4.dp)
@@ -223,12 +251,13 @@ fun DriverScreen(viewModel: StudentViewModel = viewModel()) {
             scaffoldState = scaffoldState,
             sheetContent = {
                 StudentListBottomSheetContent(
-                    students = students,
-                    viewModel = viewModel,
+                    students = myStudents,
+                    viewModel = studentViewModel,
                     onStartSimulation = { simulationStarted = true },
                     onStudentClick = { student ->
                         showBoardingDialog = student
-                    }
+                    },
+                    onLogout = onLogout
                 )
             },
             sheetPeekHeight = 128.dp
@@ -286,13 +315,15 @@ fun StudentListBottomSheetContent(
     students: List<Student>,
     viewModel: StudentViewModel,
     onStartSimulation: () -> Unit,
-    onStudentClick: (Student) -> Unit
+    onStudentClick: (Student) -> Unit,
+    onLogout: () -> Unit
 ) {
     StudentList(
         students = students,
         viewModel = viewModel,
         onStartSimulation = onStartSimulation,
         onStudentClick = onStudentClick,
+        onLogout = onLogout,
         modifier = Modifier.padding(16.dp)
     )
 }
@@ -303,41 +334,51 @@ fun StudentList(
     viewModel: StudentViewModel,
     onStartSimulation: () -> Unit,
     onStudentClick: (Student) -> Unit,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val attendingStudents = students.filter { it.isAttending }
     val notAttendingStudents = students.filter { !it.isAttending }
 
-    Column(
-        modifier = modifier.fillMaxHeight()
+    LazyColumn(
+        modifier = modifier.fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Button(
-            onClick = {
-                // Reset all students to default for a new day/trip
-                students.forEach { student ->
-                    viewModel.updateStudent(
-                        student.copy(
-                            boardedStatus = BoardedStatus.DEFAULT,
-                            isAttending = true // Default to attending
+        item {
+            Button(
+                onClick = {
+                    // Reset all students to default for a new day/trip
+                    students.forEach { student ->
+                        viewModel.updateStudent(
+                            student.copy(
+                                boardedStatus = BoardedStatus.DEFAULT,
+                                isAttending = true // Default to attending
+                            )
                         )
-                    )
-                }
-                // Now, start the simulation
-                onStartSimulation()
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Start New Simulation")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Students List", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(attendingStudents) { student ->
-                StudentListItem(student = student, isAttending = true, onStudentClick = { onStudentClick(student) })
+                    }
+                    // Now, start the simulation
+                    onStartSimulation()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Start New Simulation")
             }
-            items(notAttendingStudents) { student ->
-                StudentListItem(student = student, isAttending = false, onStudentClick = { onStudentClick(student) })
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "Students List", style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        items(attendingStudents) { student ->
+            StudentListItem(student = student, isAttending = true, onStudentClick = { onStudentClick(student) })
+        }
+        items(notAttendingStudents) { student ->
+            StudentListItem(student = student, isAttending = false, onStudentClick = { onStudentClick(student) })
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onLogout) {
+                Text("Logout")
             }
         }
     }
