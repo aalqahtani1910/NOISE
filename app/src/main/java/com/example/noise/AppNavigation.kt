@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 fun AppNavigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
+    val driverViewModel: DriverViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = "role_selection") {
         composable("role_selection") {
@@ -22,10 +23,10 @@ fun AppNavigation() {
             DriverLoginScreen(navController, authViewModel)
         }
         composable("user_screen") {
-            UserMainScreen(navController, authViewModel)
+            UserMainScreen(navController, authViewModel, driverViewModel = driverViewModel)
         }
         composable("driver_screen") {
-            DriverScreen(navController, authViewModel)
+            DriverScreen(navController, authViewModel, driverViewModel = driverViewModel)
         }
     }
 }

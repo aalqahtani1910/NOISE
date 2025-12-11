@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -54,9 +55,10 @@ import com.google.maps.android.compose.rememberCameraPositionState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserMainScreen(navController: NavController, authViewModel: AuthViewModel, studentViewModel: StudentViewModel = viewModel()) {
+fun UserMainScreen(navController: NavController, authViewModel: AuthViewModel, studentViewModel: StudentViewModel = viewModel(), driverViewModel: DriverViewModel = viewModel()) {
     val loggedInParent by authViewModel.loggedInParent.collectAsState()
     val allStudents by studentViewModel.students.collectAsState()
+    val allDrivers by driverViewModel.drivers.collectAsState()
     val isLoading by studentViewModel.isLoading.collectAsState()
     val context = LocalContext.current
 
@@ -135,12 +137,20 @@ fun UserMainScreen(navController: NavController, authViewModel: AuthViewModel, s
             modifier = modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState
         ) {
-            selectedStudent?.let {
+            myStudents.forEach { student ->
                 Marker(
-                    state = MarkerState(position = LatLng(it.location.latitude, it.location.longitude)),
-                    title = formatNameForDisplay(it.name),
+                    state = MarkerState(position = LatLng(student.location.latitude, student.location.longitude)),
+                    title = formatNameForDisplay(student.name),
                     snippet = "Student Location"
                 )
+                val driver = allDrivers.find { driver -> driver.students.containsKey(student.id) }
+                driver?.let {
+                    Marker(
+                        state = MarkerState(position = LatLng(it.livelocation.latitude, it.livelocation.longitude)),
+                        title = "Bus Location",
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                    )
+                }
             }
         }
     }

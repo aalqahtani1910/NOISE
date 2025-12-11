@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.GeoPoint
@@ -60,7 +61,7 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DriverScreen(navController: NavController, authViewModel: AuthViewModel, studentViewModel: StudentViewModel = viewModel()) {
+fun DriverScreen(navController: NavController, authViewModel: AuthViewModel, studentViewModel: StudentViewModel = viewModel(), driverViewModel: DriverViewModel = viewModel()) {
     val loggedInDriver by authViewModel.loggedInDriver.collectAsState()
 
     loggedInDriver?.let { driver ->
@@ -70,7 +71,7 @@ fun DriverScreen(navController: NavController, authViewModel: AuthViewModel, stu
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(16.dp)
             )
-            DriverMapAndStudentList(driver, studentViewModel) {
+            DriverMapAndStudentList(driver, studentViewModel, driverViewModel) {
                 authViewModel.logout(navController.context)
                 navController.navigate("role_selection") {
                     popUpTo(0)
@@ -82,7 +83,7 @@ fun DriverScreen(navController: NavController, authViewModel: AuthViewModel, stu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, onLogout: () -> Unit) {
+fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, driverViewModel: DriverViewModel, onLogout: () -> Unit) {
     val allStudents by studentViewModel.students.collectAsState()
     val context = LocalContext.current
 
@@ -93,7 +94,7 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
     val attendingStudents = remember(myStudents) { myStudents.filter { it.isAttending } }
     val notAttendingStudents = remember(myStudents) { myStudents.filter { !it.isAttending } }
     var showNotAttendingDialog by remember { mutableStateOf<Student?>(null) }
-    var showBoardingDialog by remember { mutableStateOf<Student?>(null) } // Intentionally leaving typo as instructed
+    var showBoardingDialog by remember { mutableStateOf<Student?>(null) }
 
     val previouslyAttending = remember { mutableMapOf<String, Boolean>() }
 
@@ -126,6 +127,7 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
                     val lat = (1 - fraction) * studentStartLocation.latitude + fraction * studentEndLocation.latitude
                     val lng = (1 - fraction) * studentStartLocation.longitude + fraction * studentEndLocation.longitude
                     driverLocation = GeoPoint(lat, lng)
+                    driverViewModel.updateDriverLocation(driver.id, driverLocation)
                     delay(50)
                 }
                 currentLocation = student.location
@@ -144,6 +146,7 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
                 val lat = (1 - fraction) * returnStartLocation.latitude + fraction * driver.startlocation.latitude
                 val lng = (1 - fraction) * returnStartLocation.longitude + fraction * driver.startlocation.longitude
                 driverLocation = GeoPoint(lat, lng)
+                driverViewModel.updateDriverLocation(driver.id, driverLocation)
                 delay(50)
             }
 
@@ -236,7 +239,8 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
             ) {
                 Marker(
                     state = MarkerState(position = LatLng(driverLocation.latitude, driverLocation.longitude)),
-                    title = "Your Location"
+                    title = "Your Location",
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
                 )
                 attendingStudents.forEach { student ->
                     Marker(
@@ -273,7 +277,8 @@ fun DriverMapAndStudentList(driver: Driver, studentViewModel: StudentViewModel, 
                 ) {
                     Marker(
                         state = MarkerState(position = LatLng(driverLocation.latitude, driverLocation.longitude)),
-                        title = "Your Location"
+                        title = "Your Location",
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
                     )
                     attendingStudents.forEach { student ->
                         Marker(
