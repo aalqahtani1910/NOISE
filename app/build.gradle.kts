@@ -1,8 +1,25 @@
+import org.gradle.api.GradleException
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+}
+
+val mapsApiKeyProvider = providers.gradleProperty("MAPS_API_KEY")
+    .orElse(providers.environmentVariable("MAPS_API_KEY"))
+
+val checkReleaseMapsApiKey by tasks.registering {
+    group = "verification"
+    description = "Ensures MAPS_API_KEY is configured before release builds."
+    doLast {
+        if (mapsApiKeyProvider.orNull.isNullOrBlank()) {
+            throw GradleException(
+                "MAPS_API_KEY is missing. Define it in local.properties, gradle.properties, or as the MAPS_API_KEY environment variable before building release."
+            )
+        }
+    }
 }
 
 android {
@@ -17,6 +34,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKeyProvider.orElse("").get()
+    }
+
+    tasks.named("preReleaseBuild") {
+        dependsOn(checkReleaseMapsApiKey)
     }
 
     buildTypes {
