@@ -73,11 +73,13 @@ Each composable is self-contained, receives state via parameters, and emits user
    - Allow Gradle synchronization to finish.
 3. **Configure the Google Maps API key**
    - Follow the [Maps SDK for Android](https://developers.google.com/maps/documentation/android-sdk) guide to create a key.
-   - Add the key to `local.properties` (not committed to source control):
+   - Rotate any previously exposed key and update the new key restrictions to this Android app package/signing cert before release.
+   - Add the key to `local.properties` (not committed to source control), `~/.gradle/gradle.properties`, or CI as `MAPS_API_KEY`:
      ```
      MAPS_API_KEY=your_api_key_here
      ```
-   - Reference the key in `AndroidManifest.xml` (inside the `app` module) or a secure configuration provider before releasing.
+   - The app module injects this value through Gradle `manifestPlaceholders`, so the manifest reads `${MAPS_API_KEY}` automatically.
+   - Release builds fail fast if `MAPS_API_KEY` is missing.
 4. **Run the application**
    - Choose an emulator or physical device running Android 7.0 (API 24) or newer.
    - Click *Run* in Android Studio or execute `./gradlew installDebug` from the command line.
